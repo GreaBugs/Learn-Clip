@@ -221,21 +221,21 @@ class VisionTransformer(nn.Module):
         self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
 
     def forward(self, x: torch.Tensor):
-        x = self.conv1(x)  # shape = [*, width, grid, grid]
-        x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
-        x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-        x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
-        x = x + self.positional_embedding.to(x.dtype)
-        x = self.ln_pre(x)
+        x = self.conv1(x)  # shape = [*, width, grid, grid]  [1, 768, 7, 7]
+        x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]  [1, 768, 49]
+        x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]  [1, 49, 768]
+        x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width] [1, 50, 768]
+        x = x + self.positional_embedding.to(x.dtype)  # [1, 50, 768]
+        x = self.ln_pre(x)  #  [1, 50, 768]
 
-        x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.transformer(x)
-        x = x.permute(1, 0, 2)  # LND -> NLD
+        x = x.permute(1, 0, 2)  # NLD -> LND  [50, 1, 768]
+        x = self.transformer(x)  # [50, 1, 768]
+        x = x.permute(1, 0, 2)  # LND -> NLD  [1, 50, 768]
 
-        x = self.ln_post(x[:, 0, :])
+        x = self.ln_post(x[:, 0, :])  # [1, 768]
 
         if self.proj is not None:
-            x = x @ self.proj
+            x = x @ self.proj  # [1, 512]
 
         return x
 
@@ -337,36 +337,37 @@ class CLIP(nn.Module):
     def dtype(self):
         return self.visual.conv1.weight.dtype
 
-    def encode_image(self, image):
+    def encode_image(self, image):  # （1， 3， 224， 224）
         return self.visual(image.type(self.dtype))
 
     def encode_text(self, text):
-        x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model]
+        x = self.token_embedding(text).type(self.dtype)  # [batch_size, n_ctx, d_model] torch.Size([3, 77, 512])
 
-        x = x + self.positional_embedding.type(self.dtype)
-        x = x.permute(1, 0, 2)  # NLD -> LND
-        x = self.transformer(x)
-        x = x.permute(1, 0, 2)  # LND -> NLD
-        x = self.ln_final(x).type(self.dtype)
+        x = x + self.positional_embedding.type(self.dtype)  # [3, 77, 512]
+        x = x.permute(1, 0, 2)  # NLD -> LND  [77, 3, 512]
+        x = self.transformer(x)  # [77, 3, 512]
+        x = x.permute(1, 0, 2)  # LND -> NLD  [3, 77, 512]
+        x = self.ln_final(x).type(self.dtype)  # [3, 77, 512]
 
         # x.shape = [batch_size, n_ctx, transformer.width]
         # take features from the eot embedding (eot_token is the highest number in each sequence)
-        x = x[torch.arange(x.shape[0]), text.argmax(dim=-1)] @ self.text_projection
+        ou = x[torch.arange(x.shape[0]), text.argmax(dim=-1)]
+        x = x[torch.arange(x.shape[0]), text.argmax(dim=-1)] @ self.text_projection  # [3, 512]
 
         return x
 
     def forward(self, image, text):
-        image_features = self.encode_image(image)
-        text_features = self.encode_text(text)
+        image_features = self.encode_image(image)  # [1, 512]
+        text_features = self.encode_text(text)  # [3, 512]
 
         # normalized features
-        image_features = image_features / image_features.norm(dim=1, keepdim=True)
-        text_features = text_features / text_features.norm(dim=1, keepdim=True)
+        image_features = image_features / image_features.norm(dim=1, keepdim=True)  # [1, 512]
+        text_features = text_features / text_features.norm(dim=1, keepdim=True)  # [3, 512]
 
         # cosine similarity as logits
-        logit_scale = self.logit_scale.exp()
-        logits_per_image = logit_scale * image_features @ text_features.t()
-        logits_per_text = logits_per_image.t()
+        logit_scale = self.logit_scale.exp()  # tensor(100., device='cuda:0')
+        logits_per_image = logit_scale * image_features @ text_features.t()  # [1, 3]
+        logits_per_text = logits_per_image.t()  # [3, 1]
 
         # shape = [global_batch_size, global_batch_size]
         return logits_per_image, logits_per_text

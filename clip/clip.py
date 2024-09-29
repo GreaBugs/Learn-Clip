@@ -225,11 +225,11 @@ def tokenize(texts: Union[str, List[str]], context_length: int = 77, truncate: b
     if isinstance(texts, str):
         texts = [texts]
 
-    sot_token = _tokenizer.encoder["<|startoftext|>"]
-    eot_token = _tokenizer.encoder["<|endoftext|>"]
+    sot_token = _tokenizer.encoder["<|startoftext|>"]  # 49406
+    eot_token = _tokenizer.encoder["<|endoftext|>"]  # 49407
     all_tokens = [[sot_token] + _tokenizer.encode(text) + [eot_token] for text in texts]
     if version.parse(torch.__version__) < version.parse("1.8.0"):
-        result = torch.zeros(len(all_tokens), context_length, dtype=torch.long)
+        result = torch.zeros(len(all_tokens), context_length, dtype=torch.long)  # (3, 77)
     else:
         result = torch.zeros(len(all_tokens), context_length, dtype=torch.int)
 
