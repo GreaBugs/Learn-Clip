@@ -1,6 +1,18 @@
-ftfy
-packaging
-regex
-tqdm
-torch
-torchvision
+exceptiongroup==1.2.2
+ftfy==6.2.0
+iniconfig==2.0.0
+mkl-fft @ file:///croot/mkl_fft_1695058164594/work
+mkl-random @ file:///croot/mkl_random_1695059800811/work
+mkl-service==2.4.0
+numpy @ file:///work/mkl/numpy_and_numpy_base_1682953417311/work
+packaging==24.1
+Pillow==9.3.0
+pluggy==1.5.0
+pytest==8.3.2
+regex==2024.7.24
+tomli==2.0.1
+torch==1.7.1
+torchvision==0.8.2
+tqdm==4.66.4
+typing_extensions @ file:///croot/typing_extensions_1715268824938/work
+wcwidth==0.2.13
