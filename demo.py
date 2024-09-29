@@ -15,4 +15,4 @@ with torch.no_grad():
     logits_per_image, logits_per_text = model(image, text)  # [1, 3]  [3, 1]
     probs = logits_per_image.softmax(dim=-1).cpu().numpy()  # [1, 3]
 
-print("Label probs:", probs)  # prints: [[0.9927937  0.00421068 0.00299572]]
+print("Label probs:", probs)  # prints: [[0.9927937  0.00421068 0.00299572]].
